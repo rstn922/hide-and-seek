@@ -132,6 +132,7 @@ const state = {
 
 let targetData = {}; 
 let joinTimeout;
+let pingInterval;
 
 // ==========================================
 // DOM ELEMENTS
@@ -308,6 +309,8 @@ document.getElementById('btn-join').addEventListener('click', () => {
     joinTimeout = setTimeout(() => {
         if(screens.menu.classList.contains('active')) {
             alert('Koneksi lambat atau Host tidak ditemukan.');
+            btnJoin.innerText = "GABUNG";
+            btnJoin.disabled = false;
         }
     }, 10000);
 });
@@ -319,20 +322,28 @@ Multiplayer.onConnection = () => {
     
     if (Multiplayer.isHost) {
         document.getElementById('btn-start').disabled = false;
+        // PING guest repeatedly until they PONG to ensure channel is fully established
+        pingInterval = setInterval(() => {
+            Multiplayer.send({ type: 'HOST_PING' });
+        }, 500);
     } else {
         document.getElementById('btn-start').innerText = 'MENUNGGU HOST...';
-        Multiplayer.send({ type: 'GUEST_READY' });
     }
 };
 
 Multiplayer.onData = (data) => {
     console.log("Received:", data);
     switch(data.type) {
-        case 'GUEST_READY':
-            if (Multiplayer.isHost) {
+        case 'HOST_PING':
+            Multiplayer.send({ type: 'GUEST_PONG' });
+            break;
+        case 'GUEST_PONG':
+            if (Multiplayer.isHost && pingInterval) {
+                clearInterval(pingInterval);
+                pingInterval = null; // Cukup trigger startMatch 1 kali
                 setTimeout(() => {
                     const hostIsHider = Math.random() > 0.5;
-                    Multiplayer.send({ type: 'START_MATCH', isHostHider: hostIsHider, matchNum: 1 });
+                    Multiplayer.send({ type: 'START_MATCH', matchNum: 1, isHostHider: hostIsHider });
                     startMatch(1, hostIsHider);
                 }, 500);
             }

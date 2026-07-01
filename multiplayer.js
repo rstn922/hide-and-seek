@@ -35,7 +35,7 @@ const Multiplayer = {
         this.isHost = false;
 
         this.peer.on('open', () => {
-            this.conn = this.peer.connect(id.toUpperCase());
+            this.conn = this.peer.connect(id.toUpperCase(), { reliable: true });
             
             this.conn.on('open', () => {
                 this.setupConnection();
@@ -50,9 +50,9 @@ const Multiplayer = {
         this.peer.on('error', (err) => {
             console.error('Peer error:', err);
             alert('Koneksi error: ' + err.type);
-            const btnJoin = document.getElementById('btn-join-room');
+            const btnJoin = document.getElementById('btn-join');
             if (btnJoin) {
-                btnJoin.innerText = "Gabung Room";
+                btnJoin.innerText = "GABUNG";
                 btnJoin.disabled = false;
             }
         });
@@ -67,9 +67,9 @@ const Multiplayer = {
         
         this.conn.on('error', (err) => {
             console.error('Connection error:', err);
-            const btnJoin = document.getElementById('btn-join-room');
+            const btnJoin = document.getElementById('btn-join');
             if (btnJoin) {
-                btnJoin.innerText = "Gabung Room";
+                btnJoin.innerText = "GABUNG";
                 btnJoin.disabled = false;
             }
         });
