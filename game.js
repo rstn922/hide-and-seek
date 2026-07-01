@@ -349,7 +349,7 @@ Multiplayer.onData = (data) => {
             }
             break;
         case 'START_MATCH':
-            startMatch(data.matchNum, data.isHostHider);
+            startMatch(data.matchNum, !data.isHostHider); // Guest inverts the host's role
             break;
         case 'HIDER_READY':
             targetData.zone = data.zone;
@@ -421,11 +421,11 @@ Multiplayer.onData = (data) => {
 };
 
 // ==========================================
-// MATCH FLOW
+// MANUAL START
 // ==========================================
 document.getElementById('btn-start').addEventListener('click', () => {
     const hostIsHider = (state.matchNumber % 2 !== 0);
-    Multiplayer.send({ type: 'START_MATCH', matchNum: state.matchNumber, isHostHider: !hostIsHider });
+    Multiplayer.send({ type: 'START_MATCH', matchNum: state.matchNumber, isHostHider: hostIsHider });
     startMatch(state.matchNumber, hostIsHider);
 });
 
@@ -703,7 +703,7 @@ function showMatchResult(winnerRole, reason) {
 document.getElementById('btn-next-match').addEventListener('click', () => {
     state.matchNumber++;
     const hostIsHider = (state.matchNumber % 2 !== 0);
-    Multiplayer.send({ type: 'START_MATCH', matchNumber: state.matchNumber, isHostHider: !hostIsHider });
+    Multiplayer.send({ type: 'START_MATCH', matchNum: state.matchNumber, isHostHider: hostIsHider });
     startMatch(state.matchNumber, hostIsHider);
 });
 
