@@ -312,7 +312,7 @@ document.getElementById('btn-join').addEventListener('click', () => {
     }, 10000);
 });
 
-Multiplayer.onPeerConnected = () => {
+Multiplayer.onConnection = () => {
     if (joinTimeout) clearTimeout(joinTimeout);
     document.querySelector('.waiting-text').style.display = 'none';
     document.getElementById('lobby-players').style.display = 'block';
