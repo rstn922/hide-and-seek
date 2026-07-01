@@ -116,23 +116,22 @@ const ZONES = [
 // STATE MANAGEMENT
 // ==========================================
 const state = {
-    matchNumber: 1,
-    p1Score: 0,
-    p2Score: 0,
-    role: '', 
+    role: null, // 'HIDER' or 'SEEKER'
     phase: 'MENU',
-    timerInterval: null,
     timer: 0,
-    
+    timerInterval: null,
+    selectedZone: null,
     hiddenZone: null,
     hiddenTactic: null,
-    
-    selectedZone: null,
     seekerLives: 2,
-    seekerTimeLeft: 300, // Keep track to resume timer
+    p1Score: 0,
+    p2Score: 0,
+    matchNumber: 1,
+    seekerTimeLeft: 300
 };
 
 let targetData = {}; 
+let joinTimeout;
 
 // ==========================================
 // DOM ELEMENTS
@@ -177,6 +176,7 @@ function init() {
         relocateOverlay.classList.add('hidden');
         document.getElementById('status-message').innerText = "POSISI AMAN. TETAP TENANG.";
         Multiplayer.send({ type: 'HIDER_STAY' });
+        if (state.seekerTimeLeft) startTimer(state.seekerTimeLeft); // Lanjut visual 5 menit
     });
 
     btnRelocate.addEventListener('click', () => {
@@ -204,6 +204,7 @@ function init() {
                 }
                 
                 Multiplayer.send({ type: 'HIDER_STAY' });
+                if (state.seekerTimeLeft) startTimer(state.seekerTimeLeft); // Lanjut visual 5 menit
             }
         });
     });
@@ -304,9 +305,15 @@ document.getElementById('btn-join').addEventListener('click', () => {
     }, (err) => {
         document.getElementById('menu-status').innerText = 'Error: ' + err;
     });
+    joinTimeout = setTimeout(() => {
+        if(screens.menu.classList.contains('active')) {
+            alert('Koneksi lambat atau Host tidak ditemukan.');
+        }
+    }, 10000);
 });
 
-Multiplayer.onConnection = () => {
+Multiplayer.onPeerConnected = () => {
+    if (joinTimeout) clearTimeout(joinTimeout);
     document.querySelector('.waiting-text').style.display = 'none';
     document.getElementById('lobby-players').style.display = 'block';
     
@@ -314,14 +321,24 @@ Multiplayer.onConnection = () => {
         document.getElementById('btn-start').disabled = false;
     } else {
         document.getElementById('btn-start').innerText = 'MENUNGGU HOST...';
+        Multiplayer.send({ type: 'GUEST_READY' });
     }
 };
 
 Multiplayer.onData = (data) => {
     console.log("Received:", data);
     switch(data.type) {
+        case 'GUEST_READY':
+            if (Multiplayer.isHost) {
+                setTimeout(() => {
+                    const hostIsHider = Math.random() > 0.5;
+                    Multiplayer.send({ type: 'START_MATCH', isHostHider: hostIsHider, matchNum: 1 });
+                    startMatch(1, hostIsHider);
+                }, 500);
+            }
+            break;
         case 'START_MATCH':
-            startMatch(data.matchNumber, data.isHostHider);
+            startMatch(data.matchNum, data.isHostHider);
             break;
         case 'HIDER_READY':
             targetData.zone = data.zone;
@@ -365,8 +382,10 @@ Multiplayer.onData = (data) => {
         case 'HIDER_RELOCATING':
             if (state.role === 'SEEKER') {
                 state.phase = 'WAITING_FOR_RELOCATE';
-                stopTimer(); // Pause timer
+                state.seekerTimeLeft = state.timer; // Save Seeker's 300s timer
+                stopTimer();
                 document.getElementById('status-message').innerText = "AWAS! TARGET SEDANG BERPINDAH TEMPAT...";
+                startTimer(15); // Tampilkan visual 15 detik countdown untuk seeker!
             }
             break;
         case 'HIDER_STAY':
@@ -395,7 +414,7 @@ Multiplayer.onData = (data) => {
 // ==========================================
 document.getElementById('btn-start').addEventListener('click', () => {
     const hostIsHider = (state.matchNumber % 2 !== 0);
-    Multiplayer.send({ type: 'START_MATCH', matchNumber: state.matchNumber, isHostHider: !hostIsHider });
+    Multiplayer.send({ type: 'START_MATCH', matchNum: state.matchNumber, isHostHider: !hostIsHider });
     startMatch(state.matchNumber, hostIsHider);
 });
 
@@ -481,6 +500,13 @@ function selectHiderTactic(tacticId) {
     z.appendChild(blip);
 
     Multiplayer.send({ type: 'HIDER_READY', zone: state.hiddenZone, tactic: state.hiddenTactic });
+    
+    if (state.seekerTimeLeft) {
+        startTimer(state.seekerTimeLeft);
+    } else {
+        state.seekerTimeLeft = 300; 
+        startTimer(300);
+    }
 }
 
 function handleEnemyScan(scannedZoneId) {
@@ -491,6 +517,8 @@ function handleEnemyScan(scannedZoneId) {
 
 function startHiderInterrogated() {
     state.phase = 'INTERROGATED';
+    state.seekerTimeLeft = state.timer; // Pause Hider's visual 5-min timer
+    stopTimer();
     document.body.classList.add('shake');
     document.body.classList.remove('red-alert');
     setTimeout(() => document.body.classList.remove('shake'), 500);
